@@ -11,13 +11,21 @@ export class Renderer {
     this.ctx = ctx;
   }
 
-  drawGame(snake: Vec2[], food: Vec2, score: number, highScore: number): void {
+  drawGame(snake: Vec2[], food: Vec2, obstacles: Vec2[], score: number, level: number, highScore: number): void {
     const ctx = this.ctx;
 
     // Background
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
+
+    // Obstacles
+    ctx.shadowColor = '#FF8800';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#CC5500';
+    for (const o of obstacles) {
+      ctx.fillRect(o.x * CELL + 1, o.y * CELL + 1, CELL - 2, CELL - 2);
+    }
 
     // Food
     ctx.shadowColor = '#FF00FF';
@@ -48,12 +56,12 @@ export class Renderer {
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, W - 2, H - 2);
 
-    // Score
+    // Score / level
     ctx.shadowBlur = 0;
-    this.drawScore(score, highScore);
+    this.drawScore(score, level, highScore);
   }
 
-  private drawScore(score: number, highScore: number): void {
+  private drawScore(score: number, level: number, highScore: number): void {
     const ctx = this.ctx;
     ctx.shadowColor = '#00FFFF';
     ctx.shadowBlur = 10;
@@ -61,6 +69,8 @@ export class Renderer {
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'left';
     ctx.fillText(`SCORE: ${score}`, 8, 18);
+    ctx.textAlign = 'center';
+    ctx.fillText(`LVL ${level}`, W / 2, 18);
     ctx.textAlign = 'right';
     ctx.fillText(`BEST: ${highScore}`, W - 8, 18);
     ctx.shadowBlur = 0;
@@ -76,10 +86,9 @@ export class Renderer {
     this.glowText('WASD or Arrow Keys to move', W / 2, H / 2 + 50, '13px monospace', '#888', 0);
   }
 
-  drawPaused(snake: Vec2[], food: Vec2, score: number, highScore: number): void {
-    this.drawGame(snake, food, score, highScore);
+  drawPaused(snake: Vec2[], food: Vec2, obstacles: Vec2[], score: number, level: number, highScore: number): void {
+    this.drawGame(snake, food, obstacles, score, level, highScore);
     const ctx = this.ctx;
-    // Dim overlay
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, W, H);
@@ -87,7 +96,18 @@ export class Renderer {
     this.glowText('Press P to resume', W / 2, H / 2 + 46, '16px monospace', '#FF00FF', 8);
   }
 
-  drawGameOver(score: number, highScore: number): void {
+  drawLevelUp(level: number, score: number, highScore: number): void {
+    const ctx = this.ctx;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    this.glowText(`LEVEL ${level}`, W / 2, H / 2 - 40, '56px monospace', '#FF8800', 20);
+    this.glowText(`+${(level - 1) * 3} obstacles`, W / 2, H / 2 + 16, '18px monospace', '#CC5500', 10);
+    this.glowText('Press Enter or Space to continue', W / 2, H / 2 + 60, '14px monospace', '#888', 0);
+    this.drawScore(score, level, highScore);
+  }
+
+  drawGameOver(score: number, level: number, highScore: number): void {
     const ctx = this.ctx;
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#000';
@@ -95,10 +115,10 @@ export class Renderer {
     this.glowText('GAME OVER', W / 2, H / 2 - 60, '48px monospace', '#FF00FF', 20);
     this.glowText(`SCORE: ${score}`, W / 2, H / 2, '28px monospace', '#FFF', 10);
     this.glowText(`BEST: ${highScore}`, W / 2, H / 2 + 40, '20px monospace', '#00FFFF', 8);
-    this.glowText('Press Enter or Space to restart', W / 2, H / 2 + 90, '14px monospace', '#888', 0);
+    this.glowText(`Reached level ${level}`, W / 2, H / 2 + 74, '15px monospace', '#FF8800', 6);
+    this.glowText('Press Enter or Space to restart', W / 2, H / 2 + 110, '14px monospace', '#888', 0);
   }
 
-  // eslint-disable-next-line max-params
   private glowText(
     text: string,
     x: number,
@@ -118,19 +138,21 @@ export class Renderer {
     ctx.shadowBlur = 0;
   }
 
-  // Expose draw dispatch by state for convenience
   dispatch(
     state: GameState,
     snake: Vec2[],
     food: Vec2,
+    obstacles: Vec2[],
     score: number,
+    level: number,
     highScore: number
   ): void {
     switch (state) {
       case 'START':     this.drawStart(); break;
-      case 'PLAYING':   this.drawGame(snake, food, score, highScore); break;
-      case 'PAUSED':    this.drawPaused(snake, food, score, highScore); break;
-      case 'GAME_OVER': this.drawGameOver(score, highScore); break;
+      case 'PLAYING':   this.drawGame(snake, food, obstacles, score, level, highScore); break;
+      case 'PAUSED':    this.drawPaused(snake, food, obstacles, score, level, highScore); break;
+      case 'LEVEL_UP':  this.drawLevelUp(level, score, highScore); break;
+      case 'GAME_OVER': this.drawGameOver(score, level, highScore); break;
     }
   }
 }

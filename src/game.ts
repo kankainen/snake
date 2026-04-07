@@ -1,7 +1,7 @@
 import type { GameState, Vec2 } from './types';
-import { TICK_START, TICK_MIN } from './types';
+import { TICK_START, TICK_MIN, LEVEL_THRESHOLD, OBSTACLES_PER_LEVEL } from './types';
 import { Snake } from './snake';
-import { spawnFood } from './food';
+import { spawnFood, spawnObstacles } from './food';
 import { InputHandler } from './input';
 import { Renderer } from './renderer';
 import { getHighScore, setHighScore } from './storage';
@@ -10,7 +10,9 @@ export class Game {
   private state: GameState = 'START';
   private snake!: Snake;
   private food!: Vec2;
+  private obstacles: Vec2[] = [];
   private score = 0;
+  private level = 1;
   private highScore: number;
   private tickInterval = TICK_START;
   private accumulated = 0;
@@ -40,14 +42,18 @@ export class Game {
       if (this.state === 'START' || this.state === 'GAME_OVER') {
         this.resetGame();
         this.state = 'PLAYING';
+      } else if (this.state === 'LEVEL_UP') {
+        this.state = 'PLAYING';
       }
     }
   };
 
   private resetGame(): void {
     this.snake = new Snake();
-    this.food = spawnFood(this.snake.segments);
+    this.obstacles = [];
+    this.food = spawnFood(this.snake.segments, this.obstacles);
     this.score = 0;
+    this.level = 1;
     this.tickInterval = TICK_START;
     this.accumulated = 0;
   }
@@ -68,7 +74,9 @@ export class Game {
       this.state,
       this.snake?.segments ?? [],
       this.food ?? { x: 0, y: 0 },
+      this.obstacles,
       this.score,
+      this.level,
       this.highScore
     );
 
@@ -81,7 +89,7 @@ export class Game {
 
     this.snake.move();
 
-    if (this.snake.hitsWall() || this.snake.hitsItself()) {
+    if (this.snake.hitsWall() || this.snake.hitsItself() || this.hitsObstacle()) {
       this.endGame();
       return;
     }
@@ -92,11 +100,28 @@ export class Game {
     }
   }
 
+  private hitsObstacle(): boolean {
+    const head = this.snake.segments[0];
+    return this.obstacles.some(o => o.x === head.x && o.y === head.y);
+  }
+
   private eatFood(): void {
     this.snake.grow();
     this.score += 10;
     this.tickInterval = Math.max(TICK_MIN, TICK_START - this.score * 1.5);
-    this.food = spawnFood(this.snake.segments);
+
+    const newLevel = Math.floor(this.score / LEVEL_THRESHOLD) + 1;
+    if (newLevel > this.level) {
+      this.level = newLevel;
+      this.obstacles = [
+        ...this.obstacles,
+        ...spawnObstacles(OBSTACLES_PER_LEVEL, this.snake.segments, this.food, this.obstacles),
+      ];
+      this.food = spawnFood(this.snake.segments, this.obstacles);
+      this.state = 'LEVEL_UP';
+    } else {
+      this.food = spawnFood(this.snake.segments, this.obstacles);
+    }
   }
 
   private endGame(): void {
