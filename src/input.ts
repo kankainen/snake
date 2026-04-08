@@ -18,7 +18,7 @@ export class InputHandler {
       this.queueDirection(dir);
       return;
     }
-    if (e.key === 'Enter' || e.key === ' ' || e.key === 'p' || e.key === 'P') {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'p' || e.key === 'P' || e.key === 'h' || e.key === 'H') {
       e.preventDefault();
       this.onActionKey(e.key);
     }

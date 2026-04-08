@@ -1,10 +1,10 @@
-import type { GameState, Vec2 } from './types';
+import type { GameState, Vec2, HighScoreEntry } from './types';
 import { TICK_START, TICK_MIN, LEVEL_THRESHOLD, OBSTACLES_PER_LEVEL } from './types';
 import { Snake } from './snake';
 import { spawnFood, spawnObstacles } from './food';
 import { InputHandler } from './input';
 import { Renderer } from './renderer';
-import { getHighScore, setHighScore } from './storage';
+import { getHighScores, qualifiesForBoard, addHighScore } from './storage';
 
 export class Game {
   private state: GameState = 'START';
@@ -13,7 +13,6 @@ export class Game {
   private obstacles: Vec2[] = [];
   private score = 0;
   private level = 1;
-  private highScore: number;
   private tickInterval = TICK_START;
   private accumulated = 0;
   private lastTime = 0;
@@ -21,10 +20,16 @@ export class Game {
   private input: InputHandler;
   private renderer: Renderer;
 
+  private initials = '';
+  private scores: HighScoreEntry[] = [];
+  private newEntryIndex = -1;
+  private fromStart = false;
+
   constructor(ctx: CanvasRenderingContext2D) {
     this.renderer = new Renderer(ctx);
-    this.highScore = getHighScore();
+    this.scores = getHighScores();
     this.input = new InputHandler(this.handleActionKey);
+    window.addEventListener('keydown', this.handleTextKey);
   }
 
   start(): void {
@@ -38,15 +43,57 @@ export class Game {
       else if (this.state === 'PAUSED') this.state = 'PLAYING';
       return;
     }
+    if (key === 'h' || key === 'H') {
+      if (this.state === 'START') {
+        this.fromStart = true;
+        this.scores = getHighScores();
+        this.state = 'HIGH_SCORES';
+      }
+      return;
+    }
     if (key === 'Enter' || key === ' ') {
-      if (this.state === 'START' || this.state === 'GAME_OVER') {
+      if (this.state === 'START') {
         this.resetGame();
         this.state = 'PLAYING';
+      } else if (this.state === 'HIGH_SCORES') {
+        if (this.fromStart) {
+          this.state = 'START';
+        } else {
+          this.resetGame();
+          this.state = 'PLAYING';
+        }
       } else if (this.state === 'LEVEL_UP') {
         this.state = 'PLAYING';
       }
     }
   };
+
+  private handleTextKey = (e: KeyboardEvent): void => {
+    if (this.state !== 'ENTER_INITIALS') return;
+    if (/^[A-Za-z]$/.test(e.key) && this.initials.length < 4) {
+      e.preventDefault();
+      this.initials += e.key.toUpperCase();
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      this.initials = this.initials.slice(0, -1);
+    } else if (e.key === 'Enter' && this.initials.length >= 1) {
+      e.preventDefault();
+      this.confirmInitials();
+    }
+  };
+
+  private confirmInitials(): void {
+    const entry: HighScoreEntry = {
+      score: this.score,
+      level: this.level,
+      date: new Date().toLocaleDateString(),
+      initials: this.initials.padEnd(4, ' '),
+    };
+    this.newEntryIndex = addHighScore(entry);
+    this.scores = getHighScores();
+    this.fromStart = false;
+    this.state = 'HIGH_SCORES';
+  }
 
   private resetGame(): void {
     this.snake = new Snake();
@@ -56,6 +103,7 @@ export class Game {
     this.level = 1;
     this.tickInterval = TICK_START;
     this.accumulated = 0;
+    this.newEntryIndex = -1;
   }
 
   private loop = (timestamp: number): void => {
@@ -77,7 +125,10 @@ export class Game {
       this.obstacles,
       this.score,
       this.level,
-      this.highScore
+      this.scores,
+      this.newEntryIndex,
+      this.fromStart,
+      this.initials,
     );
 
     this.rafId = requestAnimationFrame(this.loop);
@@ -125,15 +176,20 @@ export class Game {
   }
 
   private endGame(): void {
-    this.state = 'GAME_OVER';
-    if (this.score > this.highScore) {
-      this.highScore = this.score;
-      setHighScore(this.highScore);
+    if (qualifiesForBoard(this.score)) {
+      this.initials = '';
+      this.state = 'ENTER_INITIALS';
+    } else {
+      this.newEntryIndex = -1;
+      this.fromStart = false;
+      this.scores = getHighScores();
+      this.state = 'HIGH_SCORES';
     }
   }
 
   destroy(): void {
     cancelAnimationFrame(this.rafId);
     this.input.destroy();
+    window.removeEventListener('keydown', this.handleTextKey);
   }
 }

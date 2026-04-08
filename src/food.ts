@@ -18,16 +18,27 @@ export function spawnObstacles(count: number, snake: Vec2[], food: Vec2, existin
   const occupied = new Set(
     [...snake, food, ...existing].map(s => `${s.x},${s.y}`)
   );
+  const head = snake[0];
+  const SAFE = 10;
+
   const candidates: Vec2[] = [];
+  const fallback: Vec2[] = [];
+
   for (let x = 0; x < COLS; x++) {
     for (let y = 0; y < ROWS; y++) {
-      if (!occupied.has(`${x},${y}`)) candidates.push({ x, y });
+      if (occupied.has(`${x},${y}`)) continue;
+      const isSafe = Math.abs(x - head.x) + Math.abs(y - head.y) >= SAFE;
+      if (isSafe) candidates.push({ x, y });
+      else fallback.push({ x, y });
     }
   }
+
+  const pool = candidates.length >= count ? candidates : fallback;
+
   // Fisher-Yates shuffle, take first `count`
-  for (let i = candidates.length - 1; i > 0; i--) {
+  for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return candidates.slice(0, count);
+  return pool.slice(0, count);
 }
