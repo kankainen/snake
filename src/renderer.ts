@@ -20,11 +20,27 @@ export class Renderer {
     ctx.fillRect(0, 0, W, H);
 
     // Obstacles
-    ctx.shadowColor = '#FF8800';
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = '#CC5500';
+    ctx.shadowBlur = 0;
     for (const o of obstacles) {
-      ctx.fillRect(o.x * CELL + 1, o.y * CELL + 1, CELL - 2, CELL - 2);
+      const x = o.x * CELL + 1;
+      const y = o.y * CELL + 1;
+      const s = CELL - 2;
+      // Black fill
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x, y, s, s);
+      // White border
+      ctx.strokeStyle = '#FFF';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, s, s);
+      // Red X
+      ctx.strokeStyle = '#FF0000';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 3, y + 3);
+      ctx.lineTo(x + s - 3, y + s - 3);
+      ctx.moveTo(x + s - 3, y + 3);
+      ctx.lineTo(x + 3, y + s - 3);
+      ctx.stroke();
     }
 
     // Food
@@ -102,7 +118,7 @@ export class Renderer {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
     this.glowText(`LEVEL ${level}`, W / 2, H / 2 - 40, '56px monospace', '#FF8800', 20);
-    this.glowText(`+${(level - 1) * 3} obstacles`, W / 2, H / 2 + 16, '18px monospace', '#CC5500', 10);
+    this.glowText(`+${(level - 1) * 3} obstacles`, W / 2, H / 2 + 16, '18px monospace', '#FF0000', 8);
     this.glowText('Press Enter or Space to continue', W / 2, H / 2 + 60, '14px monospace', '#888', 0);
     this.drawScore(score, level, highScore);
   }
